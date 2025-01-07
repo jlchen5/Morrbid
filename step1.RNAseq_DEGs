@@ -1,0 +1,93 @@
+# differential expression analysis of RNA-seq data
+rm(list = ls()) 
+suppressMessages(library(DESeq2))
+suppressMessages(library(ggplot2))
+library(AnnotationDbi)
+library(org.Mm.eg.db)
+library(org.Hs.eg.db)
+options(stringsAsFactors = F)
+
+## 自定义函数
+convert_geneid_to_symbol <- function(df, organism) {
+  gene_ids <- as.character(df$GeneID)
+  if (organism == "human") {
+    symbols <- mapIds(org.Hs.eg.db,
+                      keys = gene_ids,
+                      column = "SYMBOL",
+                      keytype = "ENTREZID",
+                      multiVals = "first")
+  } else if (organism == "mouse") {
+    symbols <- mapIds(org.Mm.eg.db,
+                      keys = gene_ids,
+                      column = "SYMBOL",
+                      keytype = "ENTREZID",
+                      multiVals = "first")
+  }
+  df$Symbol <- symbols
+  df <- df[, c("Symbol", setdiff(colnames(df), "Symbol"))]
+  df <- na.omit(df)
+  rownames(df) <- df$Symbol
+  df <- df[,-c(1,2)]
+  return(df)
+}
+
+#load counts
+hs_heart_tissue <- read.csv("./bulk RNA-seq/GSE133054_human_heart_tissue_readCount.csv",header = T)
+mm_TAC_bulk_CM <- read.csv("./bulk RNA-seq/GSE133054_mouse_TAC_bulk_CM_readCount.csv",header = T)
+mm_normal_CM <- read.csv("./bulk RNA-seq/GSE133054_mouse_normal_CM_bulk_readCount.csv",header = T)
+
+
+# id转换
+hs_heart_tissue <- convert_geneid_to_symbol(hs_heart_tissue, "human")
+mm_TAC_bulk_CM <- convert_geneid_to_symbol(mm_TAC_bulk_CM, "mouse")
+mm_normal_CM <- convert_geneid_to_symbol(mm_normal_CM, "mouse")
+
+
+
+
+# get pheno.
+library("xlsx")
+pheno.raw <- read.xlsx("pheno.xlsx",sheetIndex = 1)
+pheno <- pheno.raw[pheno.raw$ID %in% colnames(count),] 
+rownames(pheno) <- pheno$ID
+count <- count[,pheno$ID]
+pheno  <- pheno[colnames(count),]
+pheno
+
+table(colnames(count)==pheno$ID)
+colnames(count) <- pheno$ID
+
+#PCA
+colData <- data.frame(row.names =colnames(count),type=pheno$type)
+dds <- DESeqDataSetFromMatrix(countData = count, colData = colData, design = ~ type) 
+cpm <- fpm(dds,robust = FALSE)
+cpm <- as.data.frame(cpm)
+cpm$gene_name <- rownames(cpm)
+
+vst <- vst(dds)
+plotPCA(vst,intgroup="type") 
+data <- plotPCA(vst,intgroup="type",returnData = TRUE)
+data$ID <- rownames(data)
+data.pheno <- merge(data,pheno,by="ID")
+data.pheno
+
+ggplot(data.pheno, aes(x = PC1, y=PC2)) +
+  geom_point(size=2,stroke = 1,aes(color=group)) + 
+  labs(title=" ") + theme_bw()+
+  theme(plot.title=element_text(hjust=0.5),title =element_text(size=12) )  +
+  xlab(paste0( " PC1: " , " 79% variance " ))+
+  ylab(paste0( " PC2: " , " 8% variance " ))
+
+
+
+dds <- DESeq(dds)
+res <- results(dds,contrast = c("type","MCs_WT","MCs_MITF"))
+res <- as.data.frame(res)
+res$gene_name <- rownames(res)
+
+cpm.res <- as.data.frame(merge(cpm,res,by="gene_name"))
+cpm.res$gene_name <- rownames(res)
+#cpm.res.anno <- merge(anno,cpm.res,by="repeatMasker.repName")
+write.csv(cpm.res,file="genes_MCs_MITFvsWT.csv")
+
+
