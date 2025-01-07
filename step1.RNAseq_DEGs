@@ -42,12 +42,15 @@ hs_heart_tissue <- convert_geneid_to_symbol(hs_heart_tissue, "human")
 mm_TAC_bulk_CM <- convert_geneid_to_symbol(mm_TAC_bulk_CM, "mouse")
 mm_normal_CM <- convert_geneid_to_symbol(mm_normal_CM, "mouse")
 
-
-
+mm_merge <- merge(mm_normal_CM,mm_TAC_bulk_CM,by=0)
+rownames(mm_merge) <- mm_merge[,1]
+mm_merge<- mm_merge[,-1]
 
 # get pheno.
-library("xlsx")
-pheno.raw <- read.xlsx("pheno.xlsx",sheetIndex = 1)
+library(xlsx)
+pheno_hs.raw <- read.xlsx("pheno_hs.csv.xlsx",sheetIndex = 1)
+pheno_mm.raw <- read.xlsx("pheno_mm.csv.xlsx",sheetIndex = 1)
+
 pheno <- pheno.raw[pheno.raw$ID %in% colnames(count),] 
 rownames(pheno) <- pheno$ID
 count <- count[,pheno$ID]
