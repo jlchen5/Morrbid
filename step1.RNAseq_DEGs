@@ -48,20 +48,27 @@ mm_merge<- mm_merge[,-1]
 
 # get pheno.
 library(xlsx)
-pheno_hs.raw <- read.xlsx("pheno_hs.csv.xlsx",sheetIndex = 1)
-pheno_mm.raw <- read.xlsx("pheno_mm.csv.xlsx",sheetIndex = 1)
+pheno_hs.raw <- read.xlsx("pheno_hs.xlsx",sheetIndex = 1)
+pheno_mm.raw <- read.xlsx("pheno_mm.xlsx",sheetIndex = 1)
 
-pheno <- pheno.raw[pheno.raw$ID %in% colnames(count),] 
-rownames(pheno) <- pheno$ID
-count <- count[,pheno$ID]
+# count <- hs_heart_tissue
+# pheno <- pheno_hs.raw[pheno_hs.raw$sample %in% colnames(count),]
+
+count <- mm_merge
+pheno <- pheno_mm.raw[pheno_mm.raw$sample %in% colnames(count),]
+
+
+
+rownames(pheno) <- pheno$sample
+count <- count[,pheno$sample]
 pheno  <- pheno[colnames(count),]
 pheno
 
-table(colnames(count)==pheno$ID)
-colnames(count) <- pheno$ID
+table(colnames(count)==pheno$sample)
+colnames(count) <- pheno$sample
 
 #PCA
-colData <- data.frame(row.names =colnames(count),type=pheno$type)
+colData <- data.frame(row.names =colnames(count),type=pheno$group)
 dds <- DESeqDataSetFromMatrix(countData = count, colData = colData, design = ~ type) 
 cpm <- fpm(dds,robust = FALSE)
 cpm <- as.data.frame(cpm)
@@ -70,27 +77,26 @@ cpm$gene_name <- rownames(cpm)
 vst <- vst(dds)
 plotPCA(vst,intgroup="type") 
 data <- plotPCA(vst,intgroup="type",returnData = TRUE)
-data$ID <- rownames(data)
-data.pheno <- merge(data,pheno,by="ID")
+data$sample <- rownames(data)
+data.pheno <- merge(data,pheno,by="sample")
 data.pheno
 
 ggplot(data.pheno, aes(x = PC1, y=PC2)) +
-  geom_point(size=2,stroke = 1,aes(color=group)) + 
+  geom_point(size=2,stroke = 1,aes(color=type)) + 
   labs(title=" ") + theme_bw()+
   theme(plot.title=element_text(hjust=0.5),title =element_text(size=12) )  +
-  xlab(paste0( " PC1: " , " 79% variance " ))+
-  ylab(paste0( " PC2: " , " 8% variance " ))
+  xlab(paste0( " PC1: " , " 31% variance " ))+
+  ylab(paste0( " PC2: " , " 18% variance " ))
 
 
 
 dds <- DESeq(dds)
-res <- results(dds,contrast = c("type","MCs_WT","MCs_MITF"))
+res <- results(dds,contrast = c("type","TAC_heart_tissue","normal_heart_CM"))
+##### contrast=c("condition","treated","untreated")
 res <- as.data.frame(res)
 res$gene_name <- rownames(res)
 
 cpm.res <- as.data.frame(merge(cpm,res,by="gene_name"))
 cpm.res$gene_name <- rownames(res)
-#cpm.res.anno <- merge(anno,cpm.res,by="repeatMasker.repName")
-write.csv(cpm.res,file="genes_MCs_MITFvsWT.csv")
 
-
+write.csv(cpm.res,file="mm_TAC_HTvsNHCM.csv")
