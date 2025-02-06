@@ -23,3 +23,5 @@ Morrbid (myeloid RNA regulator of BCL2L11 induced cell death) in *Mus musculus* 
 
 ## 2 scRNA-seq analysis
 The single cell RNA-seq data was analyzed using [this script](https://github.com/jlchen5/Morrbid/blob/main/Untitled.ipynb).
+
+[MIT license](https://github.com/jlchen5/Morrbid/blob/main/LICENSE).
